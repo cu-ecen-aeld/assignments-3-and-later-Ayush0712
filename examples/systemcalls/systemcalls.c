@@ -1,5 +1,11 @@
 #include "systemcalls.h"
-
+#include <stdlib.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 /**
  * @param cmd the command to execute with system()
  * @return true if the command in @param cmd was executed
@@ -16,6 +22,11 @@ bool do_system(const char *cmd)
  *   and return a boolean true if the system() call completed with success
  *   or false() if it returned a failure
 */
+    int ret = system(cmd);
+    if(ret != 0){
+        perror("do_system");
+        return false;
+    }
 
     return true;
 }
@@ -37,6 +48,7 @@ bool do_system(const char *cmd)
 bool do_exec(int count, ...)
 {
     va_list args;
+    printf("Count : %d\n", count);
     va_start(args, count);
     char * command[count+1];
     int i;
@@ -45,10 +57,24 @@ bool do_exec(int count, ...)
         command[i] = va_arg(args, char *);
     }
     command[count] = NULL;
-    // this line is to avoid a compile warning before your implementation is complete
-    // and may be removed
-    command[count] = command[count];
 
+    int fork_ret = fork();
+    if(fork_ret == -1){
+        perror("do_exec-fork");
+        return false;
+    }
+
+    int ret = execv(command[0], command);
+    if(ret == -1){
+        perror("do_exec-execv");
+        return false;
+    }
+
+    int wait_ret = wait(NULL);
+    if(wait_ret == -1){
+        perror("do_exec-wait");
+        return false;
+    }
 /*
  * TODO:
  *   Execute a system command by calling fork, execv(),
@@ -84,6 +110,34 @@ bool do_exec_redirect(const char *outputfile, int count, ...)
     // and may be removed
     command[count] = command[count];
 
+    int fd = open(outputfile, O_WRONLY | S_IRWXU | S_IRWXG);
+    if(fd == -1){
+        perror("do_exec_redirect-fd");
+        return false;
+    }
+
+    if(dup2(fd, 1) < 0){
+        perror("dip2");
+        return false;
+    }
+
+        int fork_ret = fork();
+    if(fork_ret == -1){
+        perror("do_exec-fork");
+        return false;
+    }
+
+    int ret = execv(command[0], command);
+    if(ret == -1){
+        perror("do_exec-execv");
+        return false;
+    }
+
+    int wait_ret = wait(NULL);
+    if(wait_ret == -1){
+        perror("do_exec-wait");
+        return false;
+    }
 
 /*
  * TODO
